@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asset Management System</title>
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+    <div class="min-h-screen p-4">
+        <!-- Header -->
+        <header class="bg-blue-600 text-white p-4 rounded-lg shadow-lg mb-6">
+            <h1 class="text-2xl font-bold">Asset Management System</h1>
+        </header>
+
+        <!-- Main Control Panel -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+            <!-- Search Bar -->
+            <div class="col-span-1 md:col-span-2 lg:col-span-3">
+                <input type="text" id="searchInput" placeholder="Search assets..." class="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <!-- Action Buttons -->
+            <button onclick="showModal('changeUsername')" class="bg-blue-500 text-white p-3 rounded-lg hover:bg-blue-600 transition">
+                <i class="bi bi-person-fill-gear"></i> Change Username
+            </button>
+            <button onclick="showModal('faultyAsset')" class="bg-red-500 text-white p-3 rounded-lg hover:bg-red-600 transition">
+                <i class="bi bi-exclamation-triangle"></i> Report Faulty Asset
+            </button>
+            <button onclick="showModal('assetStatus')" class="bg-green-500 text-white p-3 rounded-lg hover:bg-green-600 transition">
+                <i class="bi bi-toggle-on"></i> Change Asset Status
+            </button>
+            <button onclick="showModal('spareAsset')" class="bg-yellow-500 text-white p-3 rounded-lg hover:bg-yellow-600 transition">
+                <i class="bi bi-box-seam"></i> Spare Asset
+            </button>
+            <button onclick="importExcel()" class="bg-purple-500 text-white p-3 rounded-lg hover:bg-purple-600 transition">
+                <i class="bi bi-file-earmark-arrow-up"></i> Import Inventory
+            </button>
+            <button onclick="exportExcel()" class="bg-indigo-500 text-white p-3 rounded-lg hover:bg-indigo-600 transition">
+                <i class="bi bi-file-earmark-arrow-down"></i> Export Inventory
+            </button>
+        </div>
+
+        <!-- Asset Table -->
+        <div class="overflow-x-auto bg-white rounded-lg shadow-lg">
+            <table class="min-w-full table-auto">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th class="px-4 py-2">ITRM</th>
+                        <th class="px-4 py-2">Location</th>
+                        <th class="px-4 py-2">Asset Type</th>
+                        <th class="px-4 py-2">Asset Number</th>
+                        <th class="px-4 py-2">Username</th>
+                        <th class="px-4 py-2">Email ID</th>
+                        <th class="px-4 py-2">Asset Status</th>
+                        <th class="px-4 py-2">OS</th>
+                        <th class="px-4 py-2">Disk</th>
+                        <th class="px-4 py-2">RAM</th>
+                        <th class="px-4 py-2">Processor</th>
+                        <th class="px-4 py-2">Remark</th>
+                        <th class="px-4 py-2">Asset Tag Status</th>
+                    </tr>
+                </thead>
+                <tbody id="assetTableBody">
+                    <!-- Table data will be dynamically populated -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Modals -->
+        <div id="modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+            <div class="bg-white p-6 rounded-lg w-96">
+                <h2 id="modalTitle" class="text-xl font-bold mb-4"></h2>
+                <div id="modalContent"></div>
+                <div class="mt-4 flex justify-end">
+                    <button onclick="closeModal()" class="bg-gray-500 text-white px-4 py-2 rounded mr-2">Cancel</button>
+                    <button onclick="handleModalSubmit()" class="bg-blue-500 text-white px-4 py-2 rounded">Submit</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentModal = '';
+        let assetData = [];
+
+        // Modal Management
+        function showModal(type) {
+            currentModal = type;
+            const modal = document.getElementById('modal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalContent = document.getElementById('modalContent');
+            
+            modal.classList.remove('hidden');
+            
+            switch(type) {
+                case 'changeUsername':
+                    modalTitle.textContent = 'Change Username';
+                    modalContent.innerHTML = `
+                        <input type="text" placeholder="Asset Number" class="w-full p-2 mb-2 border rounded">
+                        <input type="text" placeholder="New Username" class="w-full p-2 border rounded">
+                    `;
+                    break;
+                case 'faultyAsset':
+                    modalTitle.textContent = 'Report Faulty Asset';
+                    modalContent.innerHTML = `
+                        <input type="text" placeholder="Asset Number" class="w-full p-2 mb-2 border rounded">
+                        <textarea placeholder="Issue Description" class="w-full p-2 border rounded"></textarea>
+                    `;
+                    break;
+                // Add other modal types...
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.add('hidden');
+        }
+
+        function handleModalSubmit() {
+            // Handle different modal submissions
+            closeModal();
+        }
+
+        // Excel Import/Export
+        function importExcel() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.xlsx,.xls';
+            input.onchange = function(e) {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    assetData = XLSX.utils.sheet_to_json(firstSheet);
+                    updateTable();
+                };
+                reader.readAsArrayBuffer(file);
+            };
+            input.click();
+        }
+
+        function exportExcel() {
+            const ws = XLSX.utils.json_to_sheet(assetData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Assets");
+            XLSX.writeFile(wb, "asset_inventory.xlsx");
+        }
+
+        // Table Management
+        function updateTable() {
+            const tbody = document.getElementById('assetTableBody');
+            tbody.innerHTML = '';
+            
+            assetData.forEach(asset => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="border px-4 py-2">${asset.itrm || ''}</td>
+                    <td class="border px-4 py-2">${asset.location || ''}</td>
+                    <td class="border px-4 py-2">${asset.asset_type || ''}</td>
+                    <td class="border px-4 py-2">${asset.asset_number || ''}</td>
+                    <td class="border px-4 py-2">${asset.username || ''}</td>
+                    <td class="border px-4 py-2">${asset.email_id || ''}</td>
+                    <td class="border px-4 py-2">${asset.asset_status || ''}</td>
+                    <td class="border px-4 py-2">${asset.os || ''}</td>
+                    <td class="border px-4 py-2">${asset.disk || ''}</td>
+                    <td class="border px-4 py-2">${asset.ram || ''}</td>
+                    <td class="border px-4 py-2">${asset.processor || ''}</td>
+                    <td class="border px-4 py-2">${asset.remark || ''}</td>
+                    <td class="border px-4 py-2">${asset.asset_tag_status || ''}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Search Functionality
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            const filteredData = assetData.filter(asset => 
+                Object.values(asset).some(value => 
+                    value.toString().toLowerCase().includes(searchTerm)
+                )
+            );
+            updateTableWithData(filteredData);
+        });
+
+        // Initialize empty table
+        updateTable();
+    </script>
+<script>document.body.addEventListener('wheel', e => { if (!e.ctrlKey) return; e.preventDefault(); return }, { passive: false })</script>
+	</body>
+</html>
